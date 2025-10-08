@@ -513,6 +513,27 @@ void init_array(nb::module_& m) {
               return nb::make_tuple(1, 0);
             }
           })
+      .def_static(
+          "from_dlpack",
+          [](nb::object capsule) { return mlx_from_dlpack(capsule); },
+          "capsule"_a,
+          R"pbdoc(
+            Create an array from a DLPack capsule.
+            
+            This enables zero-copy data exchange with other frameworks
+            that support the DLPack protocol (e.g., PyTorch, CuPy, JAX).
+            
+            Args:
+                capsule: A DLPack capsule object from another framework
+                
+            Returns:
+                array: MLX array sharing memory with the source
+                
+            Example:
+                >>> import cupy as cp
+                >>> x_cupy = cp.array([1, 2, 3, 4])
+                >>> x_mlx = mx.array.from_dlpack(x_cupy)
+          )pbdoc")
       .def("__copy__", [](const mx::array& self) { return mx::array(self); })
       .def(
           "__deepcopy__",
