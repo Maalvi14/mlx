@@ -5,3 +5,8 @@ requires = [
   "cmake>=3.25,<4.1",
 ]
 build-backend = "setuptools.build_meta"
+
+[project.optional-dependencies]
+cuda = [
+  "nvmath-python>=0.2.0",  # NVIDIA cuFFT support for CUDA backend
+]
