@@ -7,7 +7,6 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [project.optional-dependencies]
-name = "mlx-cuda"
 cuda = [
   "nvmath-python>=0.2.0",  # NVIDIA cuFFT support for CUDA backend
 ]
