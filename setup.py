@@ -235,6 +235,11 @@ if __name__ == "__main__":
             "torch>=2.9",
             "typing_extensions",
         ],
+        # CUDA FFT via nvmath-python (cuFFT). Use [cu12] or [cu13] to match your CUDA toolkit.
+        "cuda-fft": [
+            "nvmath-python[cu12]",
+            "cupy-cuda12x",
+        ],
     }
     entry_points = {
         "console_scripts": [

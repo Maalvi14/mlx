@@ -15,7 +15,28 @@ except ImportError as e:
     has_torch = False
 
 
+def _cuda_fft_usable():
+    """True if CUDA FFT (nvmath + CuPy, DLPack compatible) is actually usable."""
+    if mx.default_device() != mx.gpu:
+        return False
+    try:
+        from mlx.fft_dispatch import cuda_fft_available
+        return cuda_fft_available()
+    except Exception:
+        return False
+
+
 class TestFFT(mlx_tests.MLXTestCase):
+    def setUp(self):
+        super().setUp()
+        self._saved_device = mx.default_device()
+        if self._saved_device == mx.gpu and not _cuda_fft_usable():
+            mx.set_default_device(mx.cpu)
+
+    def tearDown(self):
+        mx.set_default_device(self._saved_device)
+        super().tearDown()
+
     def check_mx_np(self, op_mx, op_np, a_np, atol=1e-5, rtol=1e-6, **kwargs):
         out_np = op_np(a_np, **kwargs)
         a_mx = mx.array(a_np)
@@ -317,6 +338,45 @@ class TestFFT(mlx_tests.MLXTestCase):
             dfdx = mx.grad(f)(x)
             dgdx = torch.func.grad(g)(torch.tensor(x))
             self.assertLess((dfdx - dgdx).abs().max() / dgdx.abs().mean(), 1e-4)
+
+
+class TestFFTCUDA(mlx_tests.MLXTestCase):
+    """Test FFT on CUDA via nvmath-python (runs only when CUDA + nvmath + CuPy available)."""
+
+    @classmethod
+    def _cuda_fft_available(cls):
+        if mx.default_device() != mx.gpu or mx.metal.is_available():
+            return False
+        try:
+            from mlx.fft_dispatch import cuda_fft_available
+            return cuda_fft_available()
+        except Exception:
+            return False
+
+    def test_cuda_fft_vs_numpy(self):
+        """On CUDA with nvmath+CuPy: FFT on GPU should match NumPy (within tolerance)."""
+        if not self._cuda_fft_available():
+            self.skipTest(
+                "CUDA FFT test requires: CUDA backend, nvmath-python, and CuPy. "
+                "Install with e.g. pip install nvmath-python[cu12] cupy-cuda12x"
+            )
+        mx.set_default_device(mx.gpu)
+        np.random.seed(42)
+        # 1D C2C
+        a_np = np.random.rand(64).astype(np.float32) + 1j * np.random.rand(64).astype(np.float32)
+        a_mx = mx.array(a_np)
+        out_np = np.fft.fft(a_np)
+        out_mx = mx.fft.fft(a_mx)
+        np.testing.assert_allclose(out_np, np.array(out_mx), atol=1e-4, rtol=1e-3)
+        # 1D R2C
+        r_np = np.random.rand(64).astype(np.float32)
+        r_mx = mx.array(r_np)
+        out_np = np.fft.rfft(r_np)
+        out_mx = mx.fft.rfft(r_mx)
+        np.testing.assert_allclose(out_np, np.array(out_mx), atol=1e-4, rtol=1e-3)
+        # round-trip
+        back_mx = mx.fft.ifft(mx.fft.fft(a_mx))
+        np.testing.assert_allclose(a_np, np.array(back_mx), atol=1e-4, rtol=1e-3)
 
 
 if __name__ == "__main__":
